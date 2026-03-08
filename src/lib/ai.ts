@@ -56,16 +56,21 @@ export async function streamAI(opts: StreamOptions) {
         if (data === '[DONE]') continue
         try {
           const parsed = JSON.parse(data)
-          // Anthropic API-level error (e.g. insufficient credits)
+          // Anthropic API-level error
           if (parsed.type === 'error' && parsed.error?.message) {
             onError(parsed.error.message)
+            return
+          }
+          // MiniMax error (non-streaming error response)
+          if (parsed.base_resp?.status_code !== undefined && parsed.base_resp.status_code !== 0) {
+            onError(parsed.base_resp.status_msg || 'MiniMax API error')
             return
           }
           // Anthropic streaming format
           if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
             onChunk(parsed.delta.text)
           }
-          // OpenAI format
+          // OpenAI / MiniMax streaming format
           const delta = parsed.choices?.[0]?.delta?.content
           if (delta) onChunk(delta)
         } catch { /* skip malformed */ }

@@ -9,10 +9,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, text, provider = 'anthropic' } = await req.json() as {
+    const { action, text } = await req.json() as {
       action: string
       text: string
-      provider?: string
     }
 
     if (!action || !text) {
@@ -38,49 +37,34 @@ Deno.serve(async (req) => {
       })
     }
 
-    if (provider === 'openai') {
-      const apiKey = Deno.env.get('OPENAI_API_KEY')
-      if (!apiKey) throw new Error('OPENAI_API_KEY not configured')
+    const apiKey = Deno.env.get('MINIMAX_API_KEY')
+    if (!apiKey) throw new Error('MINIMAX_API_KEY not configured')
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          stream: true,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      })
+    // MiniMax API call
+    const response = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'MiniMax-Text-01',
+        messages: [{ role: 'user', content: prompt }],
+        stream: true,
+      }),
+    })
 
-      return new Response(response.body, {
-        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
-      })
-    } else {
-      const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
-      if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured')
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1024,
-          stream: true,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      })
-
-      return new Response(response.body, {
-        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+    if (!response.ok) {
+      const errText = await response.text()
+      return new Response(JSON.stringify({ error: `MiniMax API error: ${errText}` }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    return new Response(response.body, {
+      headers: { ...corsHeaders, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+    })
   } catch (err) {
     return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
