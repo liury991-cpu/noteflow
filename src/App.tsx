@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import {
   PanelLeft, PanelRight, SplitSquareHorizontal,
   Eye, Pencil, Settings, Sparkles,
-  Link, Clock,
+  Link, Clock, LogOut,
 } from 'lucide-react'
 import { useNoteStore } from './store/noteStore'
 import { useUIStore } from './store/uiStore'
@@ -11,9 +11,10 @@ import { Editor } from './components/Editor'
 import { SearchModal } from './components/SearchModal'
 import { AIPanel } from './components/AIPanel'
 import { SettingsModal } from './pages/Settings'
-import { seedIfEmpty } from './db'
+import { AuthGuard } from './components/AuthGuard'
+import { supabase } from './lib/supabase'
 
-export default function App() {
+function AppInner() {
   const { load, activeNote } = useNoteStore()
   const {
     loadSettings, sidebarOpen, toggleSidebar,
@@ -25,7 +26,6 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       await loadSettings()
-      await seedIfEmpty()
       await load()
     }
     init()
@@ -84,6 +84,9 @@ export default function App() {
           </ToolBtn>
           <ToolBtn title="设置" onClick={openSettings}>
             <Settings size={15} />
+          </ToolBtn>
+          <ToolBtn title="退出登录" onClick={() => supabase.auth.signOut()}>
+            <LogOut size={15} />
           </ToolBtn>
         </header>
 
@@ -161,6 +164,14 @@ export default function App() {
       <SearchModal />
       <SettingsModal />
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthGuard>
+      <AppInner />
+    </AuthGuard>
   )
 }
 

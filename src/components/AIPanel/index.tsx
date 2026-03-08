@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react'
 import { Sparkles, Copy, Check, AlertCircle, Loader2, ChevronDown } from 'lucide-react'
 import { useNoteStore } from '../../store/noteStore'
-import { useUIStore } from '../../store/uiStore'
 import { streamAI, type AIAction } from '../../lib/ai'
 
 const ACTIONS: { key: AIAction; label: string; desc: string }[] = [
@@ -14,7 +13,6 @@ const ACTIONS: { key: AIAction; label: string; desc: string }[] = [
 
 export function AIPanel() {
   const { activeNote, updateNote } = useNoteStore()
-  const { settings } = useUIStore()
   const [action, setAction] = useState<AIAction>('summarize')
   const [result, setResult] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,11 +21,8 @@ export function AIPanel() {
   const [applied, setApplied] = useState(false)
   const abortRef = useRef(false)
 
-  const apiKey = settings?.apiKey || ''
-  const hasKey = apiKey.trim().length > 0
-
   const run = async () => {
-    if (!activeNote || !hasKey || loading) return
+    if (!activeNote || loading) return
     setResult('')
     setError('')
     setLoading(true)
@@ -37,8 +32,7 @@ export function AIPanel() {
     const text = activeNote.content
 
     await streamAI({
-      apiKey,
-      provider: settings?.apiProvider || 'anthropic',
+      provider: 'anthropic',
       action,
       text,
       onChunk: (chunk) => {
@@ -85,24 +79,6 @@ export function AIPanel() {
     return (
       <div className="flex items-center justify-center h-32 text-sm" style={{ color: 'var(--text-muted)' }}>
         先选择一篇笔记
-      </div>
-    )
-  }
-
-  if (!hasKey) {
-    return (
-      <div className="p-4 text-center">
-        <Sparkles size={24} style={{ color: 'var(--accent)', margin: '0 auto 8px' }} />
-        <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-          请在设置中配置 API Key 以启用 AI 功能
-        </p>
-        <button
-          onClick={() => useUIStore.getState().openSettings()}
-          className="text-xs px-3 py-1.5 rounded-lg font-medium"
-          style={{ background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer' }}
-        >
-          前往设置
-        </button>
       </div>
     )
   }

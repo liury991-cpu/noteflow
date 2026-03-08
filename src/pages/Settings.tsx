@@ -1,29 +1,11 @@
-import { useState, useEffect } from 'react'
-import { X, Eye, EyeOff, Moon, Sun, Monitor, Download } from 'lucide-react'
+import { X, Moon, Sun, Monitor, Download } from 'lucide-react'
 import { useUIStore } from '../store/uiStore'
 import { exportAllNotes } from '../lib/export'
 
 export function SettingsModal() {
-  const { settingsOpen, closeSettings, settings, saveSettings, setTheme, theme } = useUIStore()
-  const [apiKey, setApiKey] = useState('')
-  const [provider, setProvider] = useState<'anthropic' | 'openai'>('anthropic')
-  const [showKey, setShowKey] = useState(false)
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    if (settings && settingsOpen) {
-      setApiKey(settings.apiKey || '')
-      setProvider(settings.apiProvider || 'anthropic')
-    }
-  }, [settings, settingsOpen])
+  const { settingsOpen, closeSettings, setTheme, theme } = useUIStore()
 
   if (!settingsOpen) return null
-
-  const handleSave = async () => {
-    await saveSettings({ apiKey, apiProvider: provider })
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
 
   const handleExport = async () => {
     await exportAllNotes()
@@ -65,72 +47,6 @@ export function SettingsModal() {
                   onClick={() => setTheme(opt.value)}
                 />
               ))}
-            </div>
-          </Section>
-
-          {/* AI Config */}
-          <Section title="AI 配置">
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-muted)' }}>AI 提供商</label>
-                <select
-                  value={provider}
-                  onChange={e => setProvider(e.target.value as 'anthropic' | 'openai')}
-                  className="w-full text-sm px-3 py-2 rounded-lg"
-                  style={{
-                    background: 'var(--bg-subtle)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="anthropic">Anthropic Claude</option>
-                  <option value="openai">OpenAI GPT</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                  API Key
-                  <span className="ml-1 font-normal">(仅存储在本地浏览器)</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={e => setApiKey(e.target.value)}
-                    placeholder={provider === 'anthropic' ? 'sk-ant-...' : 'sk-...'}
-                    className="w-full text-sm px-3 py-2 rounded-lg pr-10"
-                    style={{
-                      background: 'var(--bg-subtle)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text)',
-                      outline: 'none',
-                      fontFamily: showKey ? 'monospace' : 'inherit',
-                    }}
-                  />
-                  <button
-                    onClick={() => setShowKey(s => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
-                    style={{ color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                  >
-                    {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                </div>
-                <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
-                  {provider === 'anthropic'
-                    ? '在 console.anthropic.com 获取 API Key'
-                    : '在 platform.openai.com 获取 API Key'}
-                </p>
-              </div>
-
-              <button
-                onClick={handleSave}
-                className="w-full py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
-                style={{ background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer' }}
-              >
-                {saved ? '✓ 已保存' : '保存 AI 设置'}
-              </button>
             </div>
           </Section>
 

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { db } from '../db'
+import { supabase } from '../lib/supabase'
 import type { Settings } from '../db'
 
 type Theme = 'light' | 'dark' | 'system'
@@ -39,6 +39,11 @@ function applyTheme(theme: Theme): 'light' | 'dark' {
   return resolved
 }
 
+const DEFAULT_SETTINGS: Omit<Settings, 'id'> = {
+  theme: 'light',
+  sidebarWidth: 240,
+}
+
 export const useUIStore = create<UIStore>((set, get) => ({
   theme: 'light',
   resolvedTheme: 'light',
@@ -51,26 +56,54 @@ export const useUIStore = create<UIStore>((set, get) => ({
   settings: null,
 
   loadSettings: async () => {
-    let settings = await db.settings.get('settings')
-    if (!settings) {
-      settings = {
-        id: 'settings',
-        theme: 'light',
-        apiKey: '',
-        apiProvider: 'anthropic',
-        sidebarWidth: 240,
-      }
-      await db.settings.add(settings)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+
+    let settingsData: Record<string, unknown>
+
+    if (error || !data) {
+      settingsData = { ...DEFAULT_SETTINGS }
+      await supabase
+        .from('user_settings')
+        .insert({ user_id: user.id, settings: settingsData })
+    } else {
+      settingsData = (data.settings as Record<string, unknown>) ?? {}
     }
+
+    const settings: Settings = {
+      id: user.id,
+      theme: (settingsData.theme as Theme) ?? 'light',
+      sidebarWidth: (settingsData.sidebarWidth as number) ?? 240,
+    }
+
     const resolved = applyTheme(settings.theme)
     set({ settings, theme: settings.theme, resolvedTheme: resolved })
   },
 
   saveSettings: async (patch) => {
-    const current = get().settings!
-    const updated = { ...current, ...patch }
-    await db.settings.put(updated)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const current = get().settings ?? { ...DEFAULT_SETTINGS, id: user.id }
+    const updated: Settings = { ...current, ...patch }
+
+    const settingsJson: Record<string, unknown> = {
+      theme: updated.theme,
+      sidebarWidth: updated.sidebarWidth,
+    }
+
+    await supabase
+      .from('user_settings')
+      .upsert({ user_id: user.id, settings: settingsJson })
+
     set({ settings: updated })
+
     if (patch.theme) {
       const resolved = applyTheme(patch.theme as Theme)
       set({ theme: patch.theme as Theme, resolvedTheme: resolved })

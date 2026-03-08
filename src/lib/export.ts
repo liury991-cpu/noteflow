@@ -1,9 +1,18 @@
 import JSZip from 'jszip'
-import { db } from '../db'
+import { supabase } from './supabase'
+import { noteFromRow, folderFromRow, type NoteRow, type FolderRow } from '../db'
 
 export async function exportAllNotes() {
-  const notes = await db.notes.toArray()
-  const folders = await db.folders.toArray()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const [notesRes, foldersRes] = await Promise.all([
+    supabase.from('notes').select('*').eq('user_id', user.id),
+    supabase.from('folders').select('*').eq('user_id', user.id),
+  ])
+
+  const notes = (notesRes.data as NoteRow[] ?? []).map(noteFromRow)
+  const folders = (foldersRes.data as FolderRow[] ?? []).map(folderFromRow)
 
   const folderMap = new Map(folders.map(f => [f.id, f.name]))
   const zip = new JSZip()
@@ -18,13 +27,12 @@ export async function exportAllNotes() {
       content = `<!-- AI摘要: ${note.aiSummary} -->\n\n` + content
     }
 
-    // Add frontmatter
     const frontmatter = [
       '---',
       `title: "${note.title}"`,
       `tags: [${note.tags.map(t => `"${t}"`).join(', ')}]`,
-      `created: ${new Date(note.createdAt).toISOString()}`,
-      `updated: ${new Date(note.updatedAt).toISOString()}`,
+      `created: ${note.createdAt}`,
+      `updated: ${note.updatedAt}`,
       '---',
       '',
     ].join('\n')
