@@ -1,9 +1,7 @@
-import { useEffect, useRef, useCallback } from 'react'
-import { EditorState } from '@codemirror/state'
-import { EditorView, keymap, placeholder } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
+import { useEffect, useCallback, useRef } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Placeholder from '@tiptap/extension-placeholder'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useNoteStore } from '../../store/noteStore'
@@ -11,26 +9,95 @@ import { useUIStore } from '../../store/uiStore'
 
 const AUTOSAVE_DELAY = 600
 
-const lightTheme = EditorView.theme({
-  '&': { background: 'var(--bg)', color: 'var(--text)' },
-  '.cm-content': { caretColor: 'var(--accent)' },
-  '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--accent)' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-    background: 'var(--accent-bg)',
-  },
-  '.cm-line': { color: 'var(--text)' },
-})
+const editorStyles = `
+  .ProseMirror {
+    outline: none;
+    min-height: 100%;
+    padding: 1.5rem;
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--text);
+  }
+  .ProseMirror p {
+    margin: 0 0 1em 0;
+  }
+  .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 {
+    font-weight: 600;
+    margin: 1.5em 0 0.5em 0;
+  }
+  .ProseMirror h1:first-child,
+  .ProseMirror h2:first-child,
+  .ProseMirror h3:first-child {
+    margin-top: 0;
+  }
+  .ProseMirror ul, .ProseMirror ol {
+    padding-left: 1.5em;
+    margin: 0.5em 0;
+  }
+  .ProseMirror li {
+    margin: 0.25em 0;
+  }
+  .ProseMirror blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 1em;
+    margin: 1em 0;
+    color: var(--text-muted);
+  }
+  .ProseMirror code {
+    background: var(--bg-subtle);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .ProseMirror pre {
+    background: var(--bg-subtle);
+    padding: 1em;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  .ProseMirror pre code {
+    background: none;
+    padding: 0;
+  }
+  .ProseMirror hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5em 0;
+  }
+  .ProseMirror a {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: var(--text-muted);
+    pointer-events: none;
+    float: left;
+    height: 0;
+  }
+  .ProseMirror strong {
+    font-weight: 600;
+  }
+  .ProseMirror em {
+    font-style: italic;
+  }
+`
+
+function MarkdownPreview({ content }: { content: string }) {
+  return (
+    <div className="prose prose-sm max-w-none" style={{ color: 'var(--text)' }}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  )
+}
 
 export function Editor() {
   const { activeNote, updateNote } = useNoteStore()
   const { viewMode } = useUIStore()
-  const editorRef = useRef<HTMLDivElement>(null)
-  const viewRef = useRef<EditorView | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const activeNoteIdRef = useRef<string | null>(null)
-  // Keep updateNote in a ref so the editor listener always sees the latest version
   const updateNoteRef = useRef(updateNote)
   updateNoteRef.current = updateNote
+  const lastNoteIdRef = useRef<string | null>(null)
 
   const scheduleAutosave = useCallback((content: string, noteId: string) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
@@ -39,71 +106,65 @@ export function Editor() {
     }, AUTOSAVE_DELAY)
   }, [])
 
-  // Init editor once — the editorRef div is ALWAYS rendered so this runs correctly
-  useEffect(() => {
-    if (!editorRef.current) return
-
-    const view = new EditorView({
-      state: EditorState.create({
-        doc: '',
-        extensions: [
-          history(),
-          keymap.of([...defaultKeymap, ...historyKeymap]),
-          markdown({ base: markdownLanguage }),
-          syntaxHighlighting(defaultHighlightStyle),
-          lightTheme,
-          placeholder('开始写作...'),
-          EditorView.lineWrapping,
-          EditorView.updateListener.of(update => {
-            if (update.docChanged && activeNoteIdRef.current) {
-              scheduleAutosave(update.state.doc.toString(), activeNoteIdRef.current)
-            }
-          }),
-        ],
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
       }),
-      parent: editorRef.current,
-    })
+      Placeholder.configure({
+        placeholder: '开始写作...',
+      }),
+    ],
+    content: '',
+    onUpdate: ({ editor }) => {
+      if (activeNote?.id) {
+        scheduleAutosave(editor.getText(), activeNote.id)
+      }
+    },
+    editorProps: {
+      attributes: {
+        class: 'flex-1 overflow-auto',
+      },
+    },
+  })
 
-    viewRef.current = view
+  // Sync content when switching notes or external update
+  useEffect(() => {
+    if (!editor) return
+
+    const newContent = activeNote?.content ?? ''
+    const currentContent = editor.getText()
+
+    // Only update if note changed OR content is different (external update)
+    if (activeNote?.id !== lastNoteIdRef.current || newContent !== currentContent) {
+      lastNoteIdRef.current = activeNote?.id ?? null
+      editor.commands.setContent(newContent || '<p></p>')
+    }
+  }, [editor, activeNote?.id, activeNote?.content])
+
+  // Cleanup
+  useEffect(() => {
     return () => {
-      view.destroy()
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     }
-  }, [scheduleAutosave])
-
-  // Sync content when switching notes
-  useEffect(() => {
-    const view = viewRef.current
-    if (!view) return
-
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-
-    activeNoteIdRef.current = activeNote?.id ?? null
-    const newContent = activeNote?.content ?? ''
-    const currentContent = view.state.doc.toString()
-
-    if (newContent !== currentContent) {
-      view.dispatch({
-        changes: { from: 0, to: currentContent.length, insert: newContent },
-      })
-    }
-  }, [activeNote?.id])
+  }, [])
 
   const showEditor = viewMode === 'edit' || viewMode === 'split'
   const showPreview = viewMode === 'preview' || viewMode === 'split'
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* Editor pane — always rendered so CodeMirror initializes on mount */}
+      <style>{editorStyles}</style>
+
+      {/* Editor pane */}
       <div
         className="flex-1 overflow-hidden relative"
         style={{
           display: showEditor ? 'flex' : 'none',
           flexDirection: 'column',
-          borderRight: showPreview ? `1px solid var(--border)` : 'none',
+          borderRight: showPreview ? '1px solid var(--border)' : 'none',
         }}
       >
-        {/* No-note placeholder overlay */}
         {!activeNote && (
           <div
             className="absolute inset-0 flex items-center justify-center z-10"
@@ -115,11 +176,17 @@ export function Editor() {
             </div>
           </div>
         )}
-        <div
-          ref={editorRef}
-          className="h-full overflow-auto"
-          style={{ maxWidth: showPreview ? 'none' : 720, margin: showPreview ? 0 : '0 auto' }}
-        />
+        {editor && (
+          <EditorContent
+            editor={editor}
+            className="flex-1 overflow-auto"
+            style={{
+              maxWidth: showPreview ? 'none' : 720,
+              margin: showPreview ? 0 : '0 auto',
+              background: 'var(--bg)',
+            }}
+          />
+        )}
       </div>
 
       {/* Preview pane */}
@@ -132,10 +199,7 @@ export function Editor() {
             <MarkdownPreview content={activeNote.content} />
           ) : (
             <div className="flex items-center justify-center h-full" style={{ color: 'var(--text-muted)' }}>
-              <div className="text-center">
-                <div className="text-4xl mb-3">📝</div>
-                <p className="text-sm">选择或新建一篇笔记</p>
-              </div>
+              暂无预览内容
             </div>
           )}
         </div>
@@ -143,50 +207,3 @@ export function Editor() {
     </div>
   )
 }
-
-function MarkdownPreview({ content }: { content: string }) {
-  const { notes, setActiveNote } = useNoteStore()
-  const titleMap = new Map(notes.map(n => [n.title, n.id]))
-
-  const processedContent = content.replace(
-    /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
-    (_, title, alias) => {
-      const display = alias || title
-      const id = titleMap.get(title.trim())
-      return `[${display}](wikilink:${id || 'missing'}:${encodeURIComponent(title)})`
-    }
-  )
-
-  return (
-    <div className="prose">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a({ href, children }) {
-            if (href?.startsWith('wikilink:')) {
-              const parts = href.split(':')
-              const id = parts[1]
-              const title = decodeURIComponent(parts[2] || '')
-              const exists = id !== 'missing'
-              return (
-                <span
-                  className="wiki-link"
-                  style={{ opacity: exists ? 1 : 0.5 }}
-                  title={exists ? `打开: ${title}` : `笔记不存在: ${title}`}
-                  onClick={() => exists && setActiveNote(id)}
-                >
-                  {children}
-                </span>
-              )
-            }
-            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
-          },
-        }}
-      >
-        {processedContent}
-      </ReactMarkdown>
-    </div>
-  )
-}
-
-export { MarkdownPreview }
