@@ -56,7 +56,12 @@ export async function streamAI(opts: StreamOptions) {
         if (data === '[DONE]') continue
         try {
           const parsed = JSON.parse(data)
-          // Anthropic format
+          // Anthropic API-level error (e.g. insufficient credits)
+          if (parsed.type === 'error' && parsed.error?.message) {
+            onError(parsed.error.message)
+            return
+          }
+          // Anthropic streaming format
           if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
             onChunk(parsed.delta.text)
           }
