@@ -5,6 +5,9 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
+import { Markdown } from 'tiptap-markdown'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useNoteStore } from '../../store/noteStore'
 import { useUIStore } from '../../store/uiStore'
 import {
@@ -314,13 +317,18 @@ export function Editor() {
         },
       }),
       Underline,
+      Markdown.configure({
+        html: false,
+        transformPastedText: true,
+        transformCopiedText: true,
+      }),
     ],
     content: '',
     onUpdate: ({ editor }) => {
       if (activeNote?.id) {
-        // Get plain text content - for proper Markdown we need tiptap-markdown
-        const text = editor.getText()
-        scheduleAutosave(text, activeNote.id)
+        // Get Markdown content from tiptap-markdown
+        const markdown = (editor.storage as { markdown?: { getMarkdown: () => string } }).markdown?.getMarkdown?.() || editor.getText()
+        scheduleAutosave(markdown, activeNote.id)
       }
     },
   })
@@ -422,14 +430,14 @@ export function Editor() {
         />
       </div>
 
-      {/* Preview pane - hidden by default, only show in split/preview mode */}
+      {/* Preview pane - renders Markdown to HTML */}
       {showPreview && activeNote && (
         <div
           className="flex-1 overflow-auto px-8 py-5"
           style={{ maxWidth: showEditor ? 'none' : 800, margin: '0 auto' }}
         >
           <div className="prose prose-sm max-w-none" style={{ color: 'var(--text)' }}>
-            <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{activeNote.content}</pre>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeNote.content}</ReactMarkdown>
           </div>
         </div>
       )}
