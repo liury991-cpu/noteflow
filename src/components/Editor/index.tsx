@@ -5,6 +5,8 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
+import TaskList from '@tiptap/extension-task-list'
+import TaskItem from '@tiptap/extension-task-item'
 import { Markdown } from 'tiptap-markdown'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -317,6 +319,10 @@ export function Editor() {
         },
       }),
       Underline,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
       Markdown.configure({
         html: false,
         transformPastedText: true,
@@ -366,23 +372,23 @@ export function Editor() {
     }
   }, [editor])
 
-  // Sync content when switching notes or external update
+  // Sync content when switching notes or external update (AI insert)
   useEffect(() => {
     if (!editor) return
 
     const newContent = activeNote?.content ?? ''
+    const currentContent = editor.getText()
 
-    if (activeNote?.id !== lastNoteIdRef.current) {
+    // Always sync when note changes OR when content is updated externally (AI insert)
+    if (activeNote?.id !== lastNoteIdRef.current || (lastNoteIdRef.current && newContent !== currentContent)) {
       lastNoteIdRef.current = activeNote?.id ?? null
-      // Convert Markdown to HTML for editor
       if (newContent) {
-        // Try to set content - tiptap-markdown will handle conversion
         editor.commands.setContent(newContent)
       } else {
         editor.commands.clearContent()
       }
     }
-  }, [editor, activeNote?.id])
+  }, [editor, activeNote?.id, activeNote?.content])
 
   // Cleanup
   useEffect(() => {
