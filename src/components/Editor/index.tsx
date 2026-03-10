@@ -3,24 +3,15 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
-import TaskList from '@tiptap/extension-task-list'
-import TaskItem from '@tiptap/extension-task-item'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
-import { common, createLowlight } from 'lowlight'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { useNoteStore } from '../../store/noteStore'
 import { useUIStore } from '../../store/uiStore'
 import {
-  Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code,
-  Heading1, Heading2, Heading3, List, ListOrdered, Quote,
-  CheckSquare, Link as LinkIcon, Image as ImageIcon,
-  Undo, Redo, Minus,
+  Bold, Italic, Heading1, Heading2, Heading3, List, ListOrdered,
+  Quote, Link as LinkIcon, Image as ImageIcon, Code,
+  Undo, Redo, Minus, CheckSquare,
 } from 'lucide-react'
-
-const lowlight = createLowlight(common)
 
 const AUTOSAVE_DELAY = 600
 
@@ -39,7 +30,7 @@ function ToolbarBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="p-1.5 rounded transition-colors"
+      className="p-1.5 rounded transition-colors hover:bg-black/5 dark:hover:bg-white/10"
       style={{
         background: active ? 'var(--accent-bg)' : 'transparent',
         color: active ? 'var(--accent)' : 'var(--text-muted)',
@@ -57,51 +48,48 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   if (!editor) return null
 
   const addImage = () => {
-    const url = window.prompt('输入图片 URL:')
+    const url = window.prompt('输入图片链接:')
     if (url) {
       editor.chain().focus().setImage({ src: url }).run()
     }
   }
 
   const addLink = () => {
-    const url = window.prompt('输入链接 URL:')
+    const url = window.prompt('输入链接地址:')
     if (url) {
       editor.chain().focus().setLink({ href: url }).run()
     }
   }
 
+  const toggleTaskList = () => {
+    editor.chain().focus().toggleTaskList().run()
+  }
+
   return (
     <div
-      className="flex items-center gap-0.5 px-3 py-1.5 border-b overflow-x-auto"
+      className="flex items-center gap-0.5 px-3 py-2 border-b overflow-x-auto"
       style={{ borderColor: 'var(--border)', background: 'var(--bg-subtle)' }}
     >
       <ToolbarBtn
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={editor.isActive('bold')}
-        title="加粗 (Cmd+B)"
+        title="加粗"
       >
         <Bold size={16} />
       </ToolbarBtn>
       <ToolbarBtn
         onClick={() => editor.chain().focus().toggleItalic().run()}
         active={editor.isActive('italic')}
-        title="斜体 (Cmd+I)"
+        title="斜体"
       >
         <Italic size={16} />
       </ToolbarBtn>
       <ToolbarBtn
         onClick={() => editor.chain().focus().toggleUnderline().run()}
         active={editor.isActive('underline')}
-        title="下划线 (Cmd+U)"
+        title="下划线"
       >
-        <UnderlineIcon size={16} />
-      </ToolbarBtn>
-      <ToolbarBtn
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        active={editor.isActive('strike')}
-        title="删除线"
-      >
-        <Strikethrough size={16} />
+        <span style={{ textDecoration: 'underline', fontSize: 14 }}>U</span>
       </ToolbarBtn>
       <ToolbarBtn
         onClick={() => editor.chain().focus().toggleCode().run()}
@@ -111,31 +99,31 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         <Code size={16} />
       </ToolbarBtn>
 
-      <div className="w-px h-4 mx-1" style={{ background: 'var(--border)' }} />
+      <div className="w-px h-5 mx-1" style={{ background: 'var(--border)' }} />
 
       <ToolbarBtn
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
         active={editor.isActive('heading', { level: 1 })}
-        title="标题 1"
+        title="标题1"
       >
         <Heading1 size={16} />
       </ToolbarBtn>
       <ToolbarBtn
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
         active={editor.isActive('heading', { level: 2 })}
-        title="标题 2"
+        title="标题2"
       >
         <Heading2 size={16} />
       </ToolbarBtn>
       <ToolbarBtn
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
         active={editor.isActive('heading', { level: 3 })}
-        title="标题 3"
+        title="标题3"
       >
         <Heading3 size={16} />
       </ToolbarBtn>
 
-      <div className="w-px h-4 mx-1" style={{ background: 'var(--border)' }} />
+      <div className="w-px h-5 mx-1" style={{ background: 'var(--border)' }} />
 
       <ToolbarBtn
         onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -152,7 +140,7 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         <ListOrdered size={16} />
       </ToolbarBtn>
       <ToolbarBtn
-        onClick={() => editor.chain().focus().toggleTaskList().run()}
+        onClick={toggleTaskList}
         active={editor.isActive('taskList')}
         title="任务列表"
       >
@@ -172,21 +160,29 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         <Minus size={16} />
       </ToolbarBtn>
 
-      <div className="w-px h-4 mx-1" style={{ background: 'var(--border)' }} />
+      <div className="w-px h-5 mx-1" style={{ background: 'var(--border)' }} />
 
-      <ToolbarBtn onClick={addLink} active={editor.isActive('link')} title="添加链接">
+      <ToolbarBtn onClick={addLink} active={editor.isActive('link')} title="插入链接">
         <LinkIcon size={16} />
       </ToolbarBtn>
-      <ToolbarBtn onClick={addImage} title="添加图片">
+      <ToolbarBtn onClick={addImage} title="插入图片">
         <ImageIcon size={16} />
       </ToolbarBtn>
 
-      <div className="w-px h-4 mx-1" style={{ background: 'var(--border)' }} />
+      <div className="w-px h-5 mx-1" style={{ background: 'var(--border)' }} />
 
-      <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="撤销 (Cmd+Z)">
+      <ToolbarBtn
+        onClick={() => editor.chain().focus().undo().run()}
+        disabled={!editor.can().undo()}
+        title="撤销"
+      >
         <Undo size={16} />
       </ToolbarBtn>
-      <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="重做 (Cmd+Shift+Z)">
+      <ToolbarBtn
+        onClick={() => editor.chain().focus().redo().run()}
+        disabled={!editor.can().redo()}
+        title="重做"
+      >
         <Redo size={16} />
       </ToolbarBtn>
     </div>
@@ -197,7 +193,7 @@ const editorStyles = `
   .ProseMirror {
     outline: none;
     min-height: 100%;
-    padding: 1.5rem;
+    padding: 1.5rem 2rem;
     font-size: 16px;
     line-height: 1.75;
     color: var(--text);
@@ -225,6 +221,7 @@ const editorStyles = `
     width: 1em;
     height: 1em;
     accent-color: var(--accent);
+    cursor: pointer;
   }
   .ProseMirror blockquote {
     border-left: 3px solid var(--accent);
@@ -279,23 +276,7 @@ const editorStyles = `
   .ProseMirror ul, .ProseMirror ol { padding-left: 1.5em; margin: 0.5em 0; }
   .ProseMirror li { margin: 0.25em 0; }
   .ProseMirror p { margin: 0.5em 0; }
-  /* Syntax highlighting */
-  .hljs-comment, .hljs-quote { color: #6a737d; font-style: italic; }
-  .hljs-keyword, .hljs-selector-tag { color: #d73a49; }
-  .hljs-string, .hljs-doctag { color: #22863a; }
-  .hljs-number, .hljs-literal { color: #005cc5; }
-  .hljs-variable, .hljs-template-variable { color: #e36209; }
-  .hljs-title, .hljs-section { color: #6f42c1; }
-  .hljs-built_in { color: #005cc5; }
 `
-
-function MarkdownPreview({ content }: { content: string }) {
-  return (
-    <div className="prose prose-sm max-w-none" style={{ color: 'var(--text)' }}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-    </div>
-  )
-}
 
 export function Editor() {
   const { activeNote, updateNote } = useNoteStore()
@@ -305,10 +286,10 @@ export function Editor() {
   updateNoteRef.current = updateNote
   const lastNoteIdRef = useRef<string | null>(null)
 
-  const scheduleAutosave = useCallback((content: string, noteId: string) => {
+  const scheduleAutosave = useCallback((markdown: string, noteId: string) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
-      updateNoteRef.current(noteId, { content })
+      updateNoteRef.current(noteId, { content: markdown })
     }, AUTOSAVE_DELAY)
   }, [])
 
@@ -316,7 +297,7 @@ export function Editor() {
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
-        codeBlock: false, // Disable default, use lowlight instead
+        codeBlock: false,
       }),
       Placeholder.configure({
         placeholder: '开始写作...',
@@ -324,13 +305,6 @@ export function Editor() {
       Image.configure({
         inline: false,
         allowBase64: true,
-      }),
-      CodeBlockLowlight.configure({
-        lowlight,
-      }),
-      TaskList,
-      TaskItem.configure({
-        nested: true,
       }),
       Link.configure({
         openOnClick: false,
@@ -344,7 +318,9 @@ export function Editor() {
     content: '',
     onUpdate: ({ editor }) => {
       if (activeNote?.id) {
-        scheduleAutosave(editor.getText(), activeNote.id)
+        // Get plain text content - for proper Markdown we need tiptap-markdown
+        const text = editor.getText()
+        scheduleAutosave(text, activeNote.id)
       }
     },
   })
@@ -387,17 +363,18 @@ export function Editor() {
     if (!editor) return
 
     const newContent = activeNote?.content ?? ''
-    const currentContent = editor.getText()
 
-    if (activeNote?.id !== lastNoteIdRef.current || newContent !== currentContent) {
+    if (activeNote?.id !== lastNoteIdRef.current) {
       lastNoteIdRef.current = activeNote?.id ?? null
-      // Convert plain text to paragraphs
-      const content = newContent || '<p></p>'
-      if (content !== editor.getHTML() && content !== '<p></p>') {
-        editor.commands.setContent(content)
+      // Convert Markdown to HTML for editor
+      if (newContent) {
+        // Try to set content - tiptap-markdown will handle conversion
+        editor.commands.setContent(newContent)
+      } else {
+        editor.commands.clearContent()
       }
     }
-  }, [editor, activeNote?.id, activeNote?.content])
+  }, [editor, activeNote?.id])
 
   // Cleanup
   useEffect(() => {
@@ -406,6 +383,7 @@ export function Editor() {
     }
   }, [])
 
+  // Only show editor (no preview) - simplified for WYSIWYG
   const showEditor = viewMode === 'edit' || viewMode === 'split'
   const showPreview = viewMode === 'preview' || viewMode === 'split'
 
@@ -439,27 +417,20 @@ export function Editor() {
           editor={editor}
           className="flex-1 overflow-auto"
           style={{
-            maxWidth: showPreview ? 'none' : 800,
-            margin: showPreview ? 0 : '0 auto',
             background: 'var(--bg)',
-            width: '100%',
           }}
         />
       </div>
 
-      {/* Preview pane */}
-      {showPreview && (
+      {/* Preview pane - hidden by default, only show in split/preview mode */}
+      {showPreview && activeNote && (
         <div
           className="flex-1 overflow-auto px-8 py-5"
           style={{ maxWidth: showEditor ? 'none' : 800, margin: '0 auto' }}
         >
-          {activeNote ? (
-            <MarkdownPreview content={activeNote.content} />
-          ) : (
-            <div className="flex items-center justify-center h-full" style={{ color: 'var(--text-muted)' }}>
-              暂无预览内容
-            </div>
-          )}
+          <div className="prose prose-sm max-w-none" style={{ color: 'var(--text)' }}>
+            <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{activeNote.content}</pre>
+          </div>
         </div>
       )}
     </div>
