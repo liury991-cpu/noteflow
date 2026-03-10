@@ -110,8 +110,12 @@ body {
   margin: 0.75em 0;
   color: var(--text-muted);
 }
-.prose ul, .prose ol { padding-left: 1.5em; margin: 0.5em 0; }
+.prose ul, .prose ol { padding-left: 1.5em; margin: 0.5em 0; list-style-type: disc; }
+.prose ol { list-style-type: decimal; }
 .prose li { margin: 0.2em 0; }
+.prose li > p { margin: 0; }
+/* Task list checkboxes */
+.prose input[type="checkbox"] { margin-right: 0.5em; accent-color: var(--accent); }
 .prose table { width: 100%; border-collapse: collapse; margin: 0.75em 0; font-size: 0.9em; }
 .prose th, .prose td { border: 1px solid var(--border); padding: 0.4em 0.75em; }
 .prose th { background: var(--bg-subtle); font-weight: 600; }

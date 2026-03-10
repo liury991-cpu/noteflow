@@ -13,21 +13,28 @@ import { Extension, InputRule } from '@tiptap/core'
 
 // 自定义扩展：添加列表输入规则
 // 当用户输入 "1. " 或 "- " 时自动创建列表
+// 注意：需要排除在任务列表中的情况
 const ListInputRules = Extension.create({
   name: 'listInputRules',
   addInputRules() {
     return [
-      // 有序列表：1. 2. 3.
+      // 有序列表：1. 2. 3. (仅在行首且不在任务列表中时触发)
       new InputRule({
         find: /^(\d+)\.\s$/,
-        handler: ({ range, chain }) => {
+        handler: ({ state, range, chain }) => {
+          // 检查当前是否在任务列表中
+          const $from = state.selection.$from
+          if ($from.parent.type.name === 'taskItem') return
           chain().deleteRange(range).toggleOrderedList().run()
         },
       }),
-      // 无序列表：- 或 *
+      // 无序列表：- 或 * (仅在行首且不在任务列表中时触发)
       new InputRule({
         find: /^[-*]\s$/,
-        handler: ({ range, chain }) => {
+        handler: ({ state, range, chain }) => {
+          // 检查当前是否在任务列表中
+          const $from = state.selection.$from
+          if ($from.parent.type.name === 'taskItem') return
           chain().deleteRange(range).toggleBulletList().run()
         },
       }),
